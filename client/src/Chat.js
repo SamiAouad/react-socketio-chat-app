@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ScrollToBottom from "react-scroll-to-bottom";
+import publicKey from './static/public.key'
+const CryptoJS = require("crypto-js");
 
 function Chat({ socket, username, room }) {
   const [currentMessage, setCurrentMessage] = useState("");
@@ -7,10 +9,11 @@ function Chat({ socket, username, room }) {
 
   const sendMessage = async () => {
     if (currentMessage !== "") {
+      let ciphertext = CryptoJS.AES.encrypt(currentMessage, 'my-secret-key@123').toString();
       const messageData = {
         room: room,
         author: username,
-        message: currentMessage,
+        message: ciphertext,
         time:
           new Date(Date.now()).getHours() +
           ":" +
@@ -18,13 +21,16 @@ function Chat({ socket, username, room }) {
       };
 
       await socket.emit("send_message", messageData);
+      messageData["message"] = currentMessage;
       setMessageList((list) => [...list, messageData]);
       setCurrentMessage("");
     }
   };
 
-  useEffect(() => {
-    socket.on("receive_message", (data) => {
+  useEffect( async() => {
+    console.log(publicKey)
+    await socket.on("receive_message", async (data) => {
+      data["message"] = await CryptoJS.AES.decrypt(currentMessage, 'my-secret-key@123').toString(CryptoJS.enc.Utf8);
       setMessageList((list) => [...list, data]);
     });
   }, [socket]);
